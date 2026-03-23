@@ -1,5 +1,7 @@
 const API_ERROR_FALLBACK = 'Request failed. Please try again.';
 
+const BASE_URL = "https://digital-invoice-generator-1iwa.onrender.com/";
+
 export async function http(path, { token, method = 'GET', body, headers } = {}) {
   const baseHeaders = {
     ...(body ? { 'Content-Type': 'application/json' } : {}),
@@ -7,7 +9,7 @@ export async function http(path, { token, method = 'GET', body, headers } = {}) 
     ...(headers || {}),
   };
 
-  const res = await fetch(path, {
+  const res = await fetch(`${BASE_URL}${path}`, {
     method,
     headers: baseHeaders,
     body: body ? JSON.stringify(body) : undefined,
