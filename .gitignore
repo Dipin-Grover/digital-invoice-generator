@@ -1,0 +1,32 @@
+# dependencies
+**/node_modules/
+
+# production
+**/dist/
+**/build/
+
+# uploads
+**/uploads/
+
+# logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# caches
+**/.vite/
+**/.cache/
+
+# local env files
+**/.env
+**/.env.*
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# misc
+*.log
