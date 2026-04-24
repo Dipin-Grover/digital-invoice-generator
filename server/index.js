@@ -11,6 +11,7 @@ const app = express();
 
 const allowedOrigins = [
   'https://digital-invoice-generator.vercel.app',
+  'https://digital-invoice-generator-frontend.vercel.app',
   'http://localhost:5173',
 ];
 
