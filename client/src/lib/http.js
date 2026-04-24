@@ -1,5 +1,7 @@
 const API_ERROR_FALLBACK = 'Request failed. Please try again.';
 
+const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
 export async function http(path, { token, method = 'GET', body, headers } = {}) {
   const baseHeaders = {
     ...(body ? { 'Content-Type': 'application/json' } : {}),
@@ -7,7 +9,9 @@ export async function http(path, { token, method = 'GET', body, headers } = {}) 
     ...(headers || {}),
   };
 
-  const res = await fetch(path, {
+  const fullUrl = path.startsWith('http') ? path : `${BASE_URL}${path}`;
+
+  const res = await fetch(fullUrl, {
     method,
     headers: baseHeaders,
     body: body ? JSON.stringify(body) : undefined,

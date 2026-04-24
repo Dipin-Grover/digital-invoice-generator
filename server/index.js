@@ -9,26 +9,22 @@ connectDB();
 
 const app = express();
 
-const allowedOrigins = [
-  'https://digital-invoice-generator.vercel.app',
-  'https://digital-invoice-generator-frontend.vercel.app',
-  'http://localhost:5173',
-];
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  if (origin) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+  }
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type,Authorization');
+  if (req.method === 'OPTIONS') return res.sendStatus(200);
+  next();
+});
 
-app.use(
-  cors({
-    origin(origin, callback) {
-      if (!origin) return callback(null, true);
-      if (allowedOrigins.includes(origin)) return callback(null, true);
-      return callback(new Error('Not allowed by CORS'));
-    },
-    credentials: true,
-  })
-);
+app.use(cors({ origin: true, credentials: true }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
-// Serve static files from the 'uploads' directory
 app.use('/uploads', express.static('uploads'));
 app.use('/api/users', require('./routes/users'));
 app.use('/api/invoices', require('./routes/invoices'));
