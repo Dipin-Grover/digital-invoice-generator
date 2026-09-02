@@ -96,6 +96,56 @@ const getInvoices = async (req, res) => {
   res.status(200).json(invoices);
 };
 
+// @desc    Get invoice statistics for dashboard
+// @route   GET /api/invoices/stats
+// @access  Private
+const getInvoiceStats = async (req, res) => {
+  const invoices = await Invoice.find({ user: req.user.id }).lean();
+  
+  let totalRevenue = 0;
+  let paidInvoices = 0;
+  let pendingInvoices = 0;
+  let draftInvoices = 0;
+  const revenueByMonth = {};
+  
+  invoices.forEach(inv => {
+    const status = normalizeStatus(inv.status);
+    if (status === 'paid') {
+      paidInvoices++;
+      totalRevenue += inv.total || 0;
+    } else if (status === 'sent' || status === 'pending') {
+      pendingInvoices++;
+    } else {
+      draftInvoices++;
+    }
+    
+    const date = inv.issueDate || inv.createdAt;
+    if (date) {
+      const d = new Date(date);
+      const month = d.toLocaleString('default', { month: 'short' }) + ' ' + d.getFullYear();
+      if (!revenueByMonth[month]) revenueByMonth[month] = 0;
+      if (status === 'paid') {
+        revenueByMonth[month] += inv.total || 0;
+      }
+    }
+  });
+
+  const chartData = Object.keys(revenueByMonth).map(month => ({
+    name: month,
+    revenue: revenueByMonth[month]
+  }));
+
+  res.status(200).json({
+    totalRevenue,
+    counts: {
+      paid: paidInvoices,
+      pending: pendingInvoices,
+      draft: draftInvoices
+    },
+    chartData
+  });
+};
+
 // @desc    Set invoice
 // @route   POST /api/invoices
 // @access  Private
@@ -441,6 +491,7 @@ const deleteInvoice = async (req, res) => {
 
 module.exports = {
   getInvoices,
+  getInvoiceStats,
   setInvoice,
   updateInvoice,
   deleteInvoice,

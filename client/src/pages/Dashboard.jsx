@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, useReducedMotion } from 'framer-motion';
-import { apiListInvoices } from '@/lib/invoicesApi';
+import { apiListInvoices, apiGetInvoiceStats } from '@/lib/invoicesApi';
 import { apiListClients } from '@/lib/clientsApi';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { useAuth } from '@/state/auth.jsx';
 import { useMoney } from '@/lib/money.js';
 import { getInvoiceLifecycle } from '@/lib/invoiceIntelligence.js';
@@ -38,17 +39,19 @@ function Dashboard() {
   const [error, setError] = useState('');
   const [invoices, setInvoices] = useState([]);
   const [clients, setClients] = useState([]);
+  const [stats, setStats] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
     setIsLoading(true);
     setError('');
 
-    Promise.all([apiListInvoices(token), apiListClients(token)])
-      .then(([inv, cli]) => {
+    Promise.all([apiListInvoices(token), apiListClients(token), apiGetInvoiceStats(token)])
+      .then(([inv, cli, st]) => {
         if (cancelled) return;
         setInvoices(Array.isArray(inv) ? inv : []);
         setClients(Array.isArray(cli) ? cli : []);
+        setStats(st);
       })
       .catch((err) => {
         if (cancelled) return;
@@ -168,6 +171,46 @@ function Dashboard() {
         <Kpi label="Paid" value={money.formatFromInr(kpis.paid)} hint="Settled" />
         <Kpi label="Unpaid" value={money.formatFromInr(kpis.unpaid)} hint="Pending + overdue" />
         <Kpi label="Overdue" value={money.formatFromInr(kpis.overdue)} hint="Past due" />
+      </motion.div>
+
+      {/* Analytics Chart */}
+      <motion.div
+        initial={reduceMotion ? undefined : { opacity: 0, y: 10 }}
+        animate={reduceMotion ? undefined : { opacity: 1, y: 0 }}
+        transition={reduceMotion ? undefined : { duration: 0.35, ease: [0.16, 1, 0.3, 1], delay: 0.07 }}
+        className="ds-panel p-6"
+      >
+        <div className="mb-6">
+          <div className="text-xs font-semibold uppercase tracking-[0.18em] text-white/55">Analytics</div>
+          <h2 className="mt-2 font-display text-2xl font-semibold tracking-tight">Revenue Over Time</h2>
+        </div>
+        <div className="h-72 w-full">
+          {stats && stats.chartData && stats.chartData.length > 0 ? (
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={stats.chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#22c55e" stopOpacity={0.3} />
+                    <stop offset="95%" stopColor="#22c55e" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" vertical={false} />
+                <XAxis dataKey="name" stroke="rgba(255,255,255,0.5)" tick={{ fill: 'rgba(255,255,255,0.5)', fontSize: 12 }} axisLine={false} tickLine={false} />
+                <YAxis stroke="rgba(255,255,255,0.5)" tick={{ fill: 'rgba(255,255,255,0.5)', fontSize: 12 }} axisLine={false} tickLine={false} tickFormatter={(val) => `₹${(val / 1000).toFixed(0)}k`} />
+                <Tooltip
+                  contentStyle={{ backgroundColor: 'rgba(15,23,42,0.9)', borderColor: 'rgba(255,255,255,0.1)', borderRadius: '8px', color: '#fff' }}
+                  itemStyle={{ color: '#22c55e' }}
+                  formatter={(value) => [money.formatFromInr(value), 'Revenue']}
+                />
+                <Area type="monotone" dataKey="revenue" stroke="#22c55e" strokeWidth={3} fillOpacity={1} fill="url(#colorRevenue)" />
+              </AreaChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="flex h-full items-center justify-center text-sm text-white/50">
+              {isLoading ? 'Loading chart data...' : 'Not enough data to display chart.'}
+            </div>
+          )}
+        </div>
       </motion.div>
 
       <motion.div

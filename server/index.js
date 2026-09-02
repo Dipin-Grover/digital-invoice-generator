@@ -5,31 +5,23 @@ const connectDB = require('./config/db');
 
 dotenv.config();
 
-connectDB();
+if (process.env.NODE_ENV !== 'test') {
+  connectDB();
+}
 
 const app = express();
 
-<<<<<<< HEAD
 const allowedOrigins = [
   'https://digital-invoice-generator.vercel.app',
   'http://localhost:5173',
 ];
 
-app.use(
-  cors({
-    origin: true,
-    credentials: true,
-  })
-);
-app.use(express.json());
-app.use(express.urlencoded({ extended: false }));
-
-// Serve static files from the 'uploads' directory
-=======
 app.use((req, res, next) => {
   const origin = req.headers.origin;
-  if (origin) {
+  if (origin && allowedOrigins.includes(origin)) {
     res.setHeader('Access-Control-Allow-Origin', origin);
+  } else if (origin) {
+    res.setHeader('Access-Control-Allow-Origin', origin); // fallback
   }
   res.setHeader('Access-Control-Allow-Credentials', 'true');
   res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
@@ -42,7 +34,6 @@ app.use(cors({ origin: true, credentials: true }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
->>>>>>> 4e5da2af4f5cf6e7fa9f096f210818b6bc3b9656
 app.use('/uploads', express.static('uploads'));
 app.use('/api/users', require('./routes/users'));
 app.use('/api/invoices', require('./routes/invoices'));
@@ -51,6 +42,7 @@ app.use('/api/items', require('./routes/items'));
 app.use('/api/fx', require('./routes/fx'));
 app.use('/api/pdf', require('./routes/pdf'));
 app.use('/api/email', require('./routes/email'));
+app.use('/api/payments', require('./routes/payments'));
 
 app.get('/', (req, res) => {
   res.send('API is running...');
@@ -70,8 +62,8 @@ app.use((err, req, res, next) => {
 
 const PORT = process.env.PORT || 5000;
 
-<<<<<<< HEAD
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
-=======
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
->>>>>>> 4e5da2af4f5cf6e7fa9f096f210818b6bc3b9656
+if (process.env.NODE_ENV !== 'test') {
+  app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+}
+
+module.exports = app;

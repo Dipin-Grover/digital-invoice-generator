@@ -5,6 +5,7 @@ import { apiListInvoices } from '@/lib/invoicesApi';
 import { apiListClients } from '@/lib/clientsApi';
 import { apiListItems } from '@/lib/itemsApi';
 import { apiDownloadInvoicePdf } from '@/lib/pdfApi';
+import { apiCreateRazorpayOrder, apiVerifyRazorpayPayment } from '@/lib/paymentsApi';
 import { useAuth } from '@/state/auth.jsx';
 import { useMoney } from '@/lib/money.js';
 import { getInvoiceLifecycle } from '@/lib/invoiceIntelligence.js';
@@ -14,7 +15,7 @@ function InvoiceDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const reduceMotion = useReducedMotion();
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const money = useMoney();
 
   const [isLoading, setIsLoading] = useState(true);
@@ -23,6 +24,7 @@ function InvoiceDetail() {
   const [clients, setClients] = useState([]);
   const [items, setItems] = useState([]);
   const [isPdfBusy, setIsPdfBusy] = useState(false);
+  const [isPaymentBusy, setIsPaymentBusy] = useState(false);
   const [notice, setNotice] = useState('');
 
   useEffect(() => {
@@ -73,6 +75,8 @@ function InvoiceDetail() {
     return invoice ? getInvoiceLifecycle(invoice) : null;
   }, [invoice]);
 
+  const isPaid = lifecycle?.computedStatus === 'paid' || invoice?.status === 'paid';
+
   const onDownloadPdf = async () => {
     if (!invoice?._id) return;
     setNotice('');
@@ -99,6 +103,67 @@ function InvoiceDetail() {
     if (!invoice?._id) return;
     navigate(`/invoices/${invoice._id}/email`);
   };
+
+  const handleRazorpayPayment = async () => {
+    if (!invoice?._id) return;
+    setNotice('');
+    setError('');
+    setIsPaymentBusy(true);
+
+    try {
+      // 1. Create order on our backend
+      const orderData = await apiCreateRazorpayOrder(token, invoice._id);
+      
+      // 2. Open Razorpay Checkout modal
+      const options = {
+        key: orderData.key, 
+        amount: orderData.amount,
+        currency: orderData.currency,
+        name: user?.companyName || user?.name || 'Digital Invoice',
+        description: `Payment for Invoice ${invoice.invoiceNumber || invoice._id}`,
+        order_id: orderData.orderId,
+        handler: async function (response) {
+          try {
+            // 3. Verify payment on our backend
+            await apiVerifyRazorpayPayment(token, {
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature,
+              invoiceId: invoice._id
+            });
+            setNotice('Payment successful!');
+            
+            // Reload the invoice to show paid status
+            apiListInvoices(token).then((inv) => {
+              setInvoices(Array.isArray(inv) ? inv : []);
+            });
+          } catch (err) {
+            setError(err?.message || 'Payment verification failed');
+          }
+        },
+        prefill: {
+          name: client?.name || '',
+          email: client?.email || '',
+          contact: client?.phone || ''
+        },
+        theme: {
+          color: '#22c55e' // emerald-500
+        }
+      };
+
+      const rzp = new window.Razorpay(options);
+      rzp.on('payment.failed', function (response){
+        setError(response.error.description || 'Payment failed');
+      });
+      rzp.open();
+
+    } catch (err) {
+      setError(err?.message || 'Failed to initialize payment');
+    } finally {
+      setIsPaymentBusy(false);
+    }
+  };
+
 
   return (
     <div className="space-y-10">
@@ -257,6 +322,16 @@ function InvoiceDetail() {
                     >
                       Send email
                     </button>
+                    {!isPaid && (
+                      <button
+                        type="button"
+                        className="ds-btn-secondary !bg-emerald-500/10 !text-emerald-500 hover:!bg-emerald-500/20 border-emerald-500/20"
+                        onClick={handleRazorpayPayment}
+                        disabled={isPaymentBusy}
+                      >
+                        {isPaymentBusy ? 'Initializing...' : 'Pay with Razorpay'}
+                      </button>
+                    )}
                     <div className="text-xs text-white/55">
                       Uses backend routes <span className="text-white/75">/api/pdf/:id/generate</span> and{' '}
                       <span className="text-white/75">/api/email/:id/send</span>.

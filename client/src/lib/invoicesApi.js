@@ -4,6 +4,10 @@ export function apiListInvoices(token) {
   return http('/api/invoices', { token });
 }
 
+export function apiGetInvoiceStats(token) {
+  return http('/api/invoices/stats', { token });
+}
+
 export function apiCreateInvoice(token, payload) {
   return http('/api/invoices', { token, method: 'POST', body: payload });
 }
